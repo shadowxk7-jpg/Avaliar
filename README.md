@@ -1,5 +1,5 @@
 -- ================================================================= --
---   DARK SHADOW HUB v4.2  |  LUXURY EDITION                          --
+--   DARK SHADOW HUB v4.2  |  LUXURY EDITION (CUSTOM VISUAL DESIGN)   --
 --   Merge a Mini Army: Auto Merge ANDANDO (sem teleporte),           --
 --   Auto Rebirth / Upgrade silenciosos, efeitos sonoros com volume,  --
 --   scripts por jogo (só aparecem no jogo certo), Anti-Lag e Mobile. --
@@ -49,6 +49,9 @@ end
 -- ==========================================
 local IS_TOUCH = UserInputService.TouchEnabled -- celular / emulador
 
+-- Imagem personalizada enviada pelo usuário
+local CUSTOM_IMAGE_URL = "https://i.ibb.co/DPGwbqvh/4d2c0c3a-c13f-460c-81c5-94333fdf1b2c.jpg"
+
 local connections = {}
 local function track(conn)
 	table.insert(connections, conn)
@@ -69,27 +72,24 @@ local function corner(inst, r)
 	return create("UICorner", {CornerRadius = UDim.new(0, r), Parent = inst})
 end
 
--- Imagem de Fundo Personalizada (Hospedada)
-local CUSTOM_BG_IMAGE = "https://i.ibb.co/DPGwbqvh/4d2c0c3a-c13f-460c-81c5-94333fdf1b2c.jpg"
-
--- Paleta de Cores Harmônica com a Imagem (Estilo Anime Dark/Magenta Luxury)
+-- Tabela de Cores Reestilizada em tons de Rosa, Vinho e Roxo escuro
 local COLORS = {
-	Background   = Color3.fromRGB(18, 12, 22),
-	Sidebar      = Color3.fromRGB(28, 16, 32),
-	Card         = Color3.fromRGB(34, 20, 38),
-	CardHeader   = Color3.fromRGB(48, 28, 54),
-	CardHover    = Color3.fromRGB(62, 36, 70),
-	SubTabBg     = Color3.fromRGB(38, 22, 44),
-	SubTabActive = Color3.fromRGB(68, 38, 78),
-	Accent       = Color3.fromRGB(240, 90, 160),
-	AccentDark   = Color3.fromRGB(180, 50, 110),
-	AccentGlow   = Color3.fromRGB(255, 140, 200),
-	TextMain     = Color3.fromRGB(250, 242, 248),
-	TextDark     = Color3.fromRGB(170, 145, 175),
-	Stroke       = Color3.fromRGB(65, 38, 72),
-	SwitchOff    = Color3.fromRGB(55, 32, 60),
-	Green        = Color3.fromRGB(90, 230, 130),
-	Danger       = Color3.fromRGB(220, 65, 85),
+	Background   = Color3.fromRGB(18, 10, 20),
+	Sidebar      = Color3.fromRGB(28, 14, 30),
+	Card         = Color3.fromRGB(34, 18, 38),
+	CardHeader   = Color3.fromRGB(46, 24, 52),
+	CardHover    = Color3.fromRGB(60, 32, 68),
+	SubTabBg     = Color3.fromRGB(36, 18, 40),
+	SubTabActive = Color3.fromRGB(64, 30, 72),
+	Accent       = Color3.fromRGB(240, 80, 160),
+	AccentDark   = Color3.fromRGB(170, 40, 110),
+	AccentGlow   = Color3.fromRGB(255, 120, 190),
+	TextMain     = Color3.fromRGB(250, 240, 252),
+	TextDark     = Color3.fromRGB(170, 135, 175),
+	Stroke       = Color3.fromRGB(65, 32, 75),
+	SwitchOff    = Color3.fromRGB(50, 28, 56),
+	Green        = Color3.fromRGB(90, 230, 140),
+	Danger       = Color3.fromRGB(220, 60, 90),
 	Gold         = Color3.fromRGB(255, 210, 70),
 }
 
@@ -140,7 +140,7 @@ local function splitWords(text)
 	return words
 end
 
--- Cache do personagem
+-- Cache do personagem (evita FindFirstChild a cada frame)
 local cHum, cRoot
 local function getHum()
 	local c = LocalPlayer.Character
@@ -160,9 +160,9 @@ end
 
 local clipboardFn = setclipboard or toclipboard or nil
 
--- ICONES
+-- ÍCONES
 local ICONS = {
-	Logo     = "rbxassetid://10723415903",
+	Logo     = CUSTOM_IMAGE_URL,
 	Home     = "rbxassetid://10723354417",
 	Main     = "rbxassetid://10734950309",
 	Player   = "rbxassetid://10747373176",
@@ -272,7 +272,7 @@ local InputBlocker = create("TextButton", {
 	Text = "", Visible = false, Modal = true, ZIndex = 1, Parent = ScreenGui,
 })
 
--- Neve
+-- Neve estilizada
 local SnowContainer = create("Frame", {
 	Name = "SnowContainer", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
 	ClipsDescendants = true, Visible = false, ZIndex = 1, Parent = ScreenGui,
@@ -283,7 +283,7 @@ do
 	for i = 1, (IS_TOUCH and 14 or 26) do
 		local size = math.random(3, 7)
 		local frame = create("Frame", {
-			Size = UDim2.fromOffset(size, size), BackgroundColor3 = Color3.fromRGB(255, 220, 240),
+			Size = UDim2.fromOffset(size, size), BackgroundColor3 = Color3.fromRGB(255, 200, 230),
 			BackgroundTransparency = math.random(15, 50) / 100, BorderSizePixel = 0, Parent = SnowContainer,
 		})
 		corner(frame, 8)
@@ -302,23 +302,26 @@ do
 	end
 end
 
--- Botão Flutuante
+-- Botão Flutuante (Bola com a imagem enviada)
 local FloatingBtn = create("Frame", {
-	Name = "FloatingButton", Size = UDim2.fromOffset(48, 48), Position = UDim2.new(0, 16, 0.3, 0),
+	Name = "FloatingButton", Size = UDim2.fromOffset(54, 54), Position = UDim2.new(0, 16, 0.3, 0),
 	BackgroundColor3 = COLORS.Sidebar, BorderSizePixel = 0, Active = true, ZIndex = 10, Parent = ScreenGui,
 })
-corner(FloatingBtn, 14)
-local BtnStroke = stroke(FloatingBtn, COLORS.Accent, 1.5, 0.3)
-create("ImageLabel", {
-	Size = UDim2.fromOffset(24, 24), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-	BackgroundTransparency = 1, Image = ICONS.Logo, ImageColor3 = COLORS.Accent, Parent = FloatingBtn,
+corner(FloatingBtn, 27)
+local BtnStroke = stroke(FloatingBtn, COLORS.Accent, 2, 0.2)
+
+local FloatingImg = create("ImageLabel", {
+	Size = UDim2.fromScale(1, 1), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+	BackgroundTransparency = 1, Image = CUSTOM_IMAGE_URL, Parent = FloatingBtn, ScaleType = Enum.ScaleType.Crop,
 })
+corner(FloatingImg, 27)
+
 pcall(function()
 	TweenService:Create(BtnStroke, TweenInfo.new(1.3, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-		{Thickness = 3}):Play()
+		{Thickness = 4, Color = COLORS.AccentGlow}):Play()
 end)
 
--- Janela Principal
+-- Janela principal
 local HUB_W, HUB_H, SIDEBAR_W = 660, 420, 150
 if IS_TOUCH then HUB_W, HUB_H, SIDEBAR_W = 580, 340, 132 end
 local hubCenter = Vector2.new(0, 0)
@@ -329,32 +332,15 @@ local MainFrame = create("CanvasGroup", {
 	ZIndex = 5, GroupTransparency = 1, Parent = ScreenGui,
 })
 corner(MainFrame, 16)
-stroke(MainFrame, COLORS.AccentDark, 1.2)
-
--- IMAGEM DE FUNDO PERSONALIZADA DA GUI COM OVERLAY SUAVE
-local BackgroundImage = create("ImageLabel", {
-	Name = "CustomBG",
-	Size = UDim2.fromScale(1, 1),
-	Position = UDim2.fromScale(0, 0),
-	BackgroundTransparency = 1,
-	Image = CUSTOM_BG_IMAGE,
-	ScaleType = Enum.ScaleType.Crop,
-	ImageTransparency = 0.65, -- Mantém a visibilidade da arte sem atrapalhar a leitura dos menus
-	ZIndex = 0,
-	Parent = MainFrame,
-})
-
-local BackgroundOverlay = create("Frame", {
-	Name = "BGOverlay",
-	Size = UDim2.fromScale(1, 1),
-	BackgroundColor3 = COLORS.Background,
-	BackgroundTransparency = 0.4,
-	BorderSizePixel = 0,
-	ZIndex = 0,
-	Parent = MainFrame,
-})
-
+stroke(MainFrame, COLORS.Stroke, 1.5)
 local HubScale = create("UIScale", {Scale = 1, Parent = MainFrame})
+
+-- Marca d'água / Imagem de Fundo no Hub com Transparência
+local BackgroundWatermark = create("ImageLabel", {
+	Name = "BackgroundWatermark", Size = UDim2.fromScale(0.85, 1.2), AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.fromScale(1.05, 0.5), BackgroundTransparency = 1, Image = CUSTOM_IMAGE_URL,
+	ImageTransparency = 0.88, ScaleType = Enum.ScaleType.Crop, ZIndex = 0, Parent = MainFrame,
+})
 
 local DragGhost = create("Frame", {
 	Name = "DragGhost", AnchorPoint = Vector2.new(0.5, 0.5), Visible = false, BackgroundTransparency = 0.85,
@@ -379,32 +365,42 @@ local function computeScale()
 	return math.max(0.4, fit) * userScale
 end
 
--- Sidebar
+-- Sidebar com Imagem do usuário
 local Sidebar, TabsContainer, AvatarImg
 do
 	Sidebar = create("Frame", {
 		Size = UDim2.new(0, SIDEBAR_W, 1, 0), BackgroundColor3 = COLORS.Sidebar,
-		BackgroundTransparency = 0.3, BorderSizePixel = 0, Active = true, ZIndex = 2, Parent = MainFrame,
+		BorderSizePixel = 0, Active = true, ZIndex = 2, Parent = MainFrame,
 	})
 	create("Frame", {
 		AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0), Size = UDim2.new(0, 1, 1, 0),
 		BackgroundColor3 = COLORS.Stroke, BorderSizePixel = 0, Parent = Sidebar,
 	})
-	local logo = create("Frame", {Size = UDim2.new(1, 0, 0, 56), BackgroundTransparency = 1, Parent = Sidebar})
-	create("ImageLabel", {
-		Size = UDim2.fromOffset(26, 26), Position = UDim2.new(0, 12, 0.5, -13),
-		BackgroundTransparency = 1, Image = ICONS.Logo, ImageColor3 = COLORS.Accent, Parent = logo,
+
+	-- Topo da Sidebar com Banner da Imagem Customizada
+	local logo = create("Frame", {Size = UDim2.new(1, 0, 0, 64), BackgroundTransparency = 1, Parent = Sidebar})
+	local logoImgFrame = create("Frame", {
+		Size = UDim2.fromOffset(32, 32), Position = UDim2.new(0, 10, 0.5, -16),
+		BackgroundTransparency = 1, Parent = logo,
 	})
-	local title = label({Size = UDim2.new(1, -46, 0, 16), Position = UDim2.new(0, 44, 0.5, -15), Text = "DARK SHADOW",
+	corner(logoImgFrame, 16)
+	stroke(logoImgFrame, COLORS.Accent, 1.2)
+	local logoImg = create("ImageLabel", {
+		Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Image = CUSTOM_IMAGE_URL,
+		ScaleType = Enum.ScaleType.Crop, Parent = logoImgFrame,
+	})
+	corner(logoImg, 16)
+
+	local title = label({Size = UDim2.new(1, -50, 0, 16), Position = UDim2.new(0, 48, 0.5, -15), Text = "DARK SHADOW",
 		Font = Enum.Font.GothamBlack, TextSize = 11, TextTruncate = Enum.TextTruncate.AtEnd, Parent = logo})
 	create("UIGradient", {
 		Color = ColorSequence.new(COLORS.TextMain, COLORS.AccentGlow), Parent = title,
 	})
-	label({Size = UDim2.new(1, -46, 0, 12), Position = UDim2.new(0, 44, 0.5, 2), Text = "HUB  v4.2",
+	label({Size = UDim2.new(1, -50, 0, 12), Position = UDim2.new(0, 48, 0.5, 2), Text = "HUB  v4.2",
 		TextSize = 10, TextColor3 = COLORS.Accent, Parent = logo})
 
 	TabsContainer = create("ScrollingFrame", {
-		Size = UDim2.new(1, -16, 1, -128), Position = UDim2.new(0, 8, 0, 60),
+		Size = UDim2.new(1, -16, 1, -136), Position = UDim2.new(0, 8, 0, 68),
 		BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 0,
 		AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(),
 		ScrollingDirection = Enum.ScrollingDirection.Y, Parent = Sidebar,
@@ -431,7 +427,7 @@ do
 		TextSize = 10, TextColor3 = COLORS.TextDark, TextTruncate = Enum.TextTruncate.AtEnd, Parent = profile})
 end
 
--- Header + Área de Páginas
+-- Header + área de páginas
 local TopHeader, HeaderIcon, HeaderTitle, MinimizeBtn, SearchBox, PagesContainer, NoResults
 do
 	local content = create("Frame", {
@@ -461,7 +457,7 @@ do
 
 	local sf = create("Frame", {
 		Size = UDim2.fromOffset(IS_TOUCH and 130 or 170, 30), AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -38, 0.5, 0), BackgroundColor3 = COLORS.Card, BackgroundTransparency = 0.2, Parent = TopHeader,
+		Position = UDim2.new(1, -38, 0.5, 0), BackgroundColor3 = COLORS.Card, Parent = TopHeader,
 	})
 	corner(sf, 8)
 	local ss = stroke(sf, COLORS.Stroke, 1)
@@ -532,7 +528,7 @@ local function setActiveTab(name)
 		t.Page.Visible = on
 		t.Line.Visible = on
 		t.Active = on
-		tween(t.Btn, 0.2, {BackgroundTransparency = on and 0.3 or 1})
+		tween(t.Btn, 0.2, {BackgroundTransparency = on and 0.4 or 1})
 		tween(t.Icon, 0.2, {ImageColor3 = on and COLORS.Accent or COLORS.TextDark})
 		tween(t.Label, 0.2, {TextColor3 = on and COLORS.TextMain or COLORS.TextDark})
 	end
@@ -591,7 +587,7 @@ local function createSubGroup(tabName, page)
 		for n, s in pairs(group.Subs) do
 			local on = (n == name)
 			s.Page.Visible = on
-			tween(s.Btn, 0.2, {BackgroundColor3 = on and COLORS.SubTabActive or COLORS.SubTabBg, BackgroundTransparency = on and 0.2 or 0.5})
+			tween(s.Btn, 0.2, {BackgroundColor3 = on and COLORS.SubTabActive or COLORS.SubTabBg})
 			tween(s.Icon, 0.2, {ImageColor3 = on and COLORS.Accent or COLORS.TextDark})
 			tween(s.Label, 0.2, {TextColor3 = on and COLORS.TextMain or COLORS.TextDark})
 		end
@@ -599,7 +595,7 @@ local function createSubGroup(tabName, page)
 
 	function group.Add(name, iconId)
 		local btn = create("TextButton", {
-			Size = UDim2.fromOffset(96, 34), BackgroundColor3 = COLORS.SubTabBg, BackgroundTransparency = 0.5, Text = "",
+			Size = UDim2.fromOffset(96, 34), BackgroundColor3 = COLORS.SubTabBg, Text = "",
 			AutoButtonColor = false, LayoutOrder = nextOrder(bar), Parent = bar,
 		})
 		corner(btn, 8)
@@ -649,7 +645,7 @@ do
 		})
 		local card = create("CanvasGroup", {
 			Size = UDim2.fromScale(1, 1), Position = UDim2.new(1.2, 0, 0, 0),
-			BackgroundColor3 = COLORS.Card, BackgroundTransparency = 0.1, BorderSizePixel = 0, Parent = wrapper,
+			BackgroundColor3 = COLORS.Card, BorderSizePixel = 0, Parent = wrapper,
 		})
 		corner(card, 10)
 		stroke(card, COLORS.Accent, 1, 0.5)
@@ -685,7 +681,7 @@ end
 local function AddSection(parent, title, tab, sub)
 	local frame = create("Frame", {
 		Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
-		BackgroundColor3 = COLORS.Card, BackgroundTransparency = 0.25, BorderSizePixel = 0, LayoutOrder = nextOrder(parent), Parent = parent,
+		BackgroundColor3 = COLORS.Card, BorderSizePixel = 0, LayoutOrder = nextOrder(parent), Parent = parent,
 	})
 	corner(frame, 12)
 	stroke(frame, COLORS.Stroke, 1)
@@ -756,7 +752,7 @@ local function AddSlider(sec, title, minVal, maxVal, default, step, unit, callba
 	label({Size = UDim2.new(1, -90, 0, 20), Position = UDim2.new(0, 14, 0, 4), Text = title,
 		TextTruncate = Enum.TextTruncate.AtEnd, Parent = row})
 	local valBox = create("Frame", {Size = UDim2.fromOffset(56, 20), AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -14, 0, 4), BackgroundColor3 = COLORS.CardHeader, BackgroundTransparency = 0.3, Parent = row})
+		Position = UDim2.new(1, -14, 0, 4), BackgroundColor3 = COLORS.CardHeader, Parent = row})
 	corner(valBox, 6)
 	local valLabel = label({Size = UDim2.fromScale(1, 1), Text = fmt(default), TextSize = 10,
 		Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Center, Parent = valBox})
@@ -831,7 +827,7 @@ local function AddButton(sec, title, callback, danger)
 	local over = danger and Color3.fromRGB(225, 80, 100) or COLORS.CardHover
 	local btn = create("TextButton", {
 		Size = UDim2.new(1, -28, 0, 34), Position = UDim2.new(0, 14, 0.5, -17), BackgroundColor3 = base,
-		BackgroundTransparency = 0.2, Text = title, TextColor3 = COLORS.TextMain, TextSize = 12, Font = Enum.Font.GothamBold,
+		Text = title, TextColor3 = COLORS.TextMain, TextSize = 12, Font = Enum.Font.GothamBold,
 		AutoButtonColor = false, Parent = row,
 	})
 	corner(btn, 8)
@@ -855,7 +851,7 @@ local function AddInput(sec, title, placeholder, default, callback)
 		TextTruncate = Enum.TextTruncate.AtEnd, Parent = row})
 	local boxFrame = create("Frame", {
 		Size = UDim2.fromOffset(160, 28), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -14, 0.5, 0),
-		BackgroundColor3 = COLORS.CardHeader, BackgroundTransparency = 0.3, Parent = row,
+		BackgroundColor3 = COLORS.CardHeader, Parent = row,
 	})
 	corner(boxFrame, 6)
 	local bs = stroke(boxFrame, COLORS.Stroke, 1)
@@ -937,9 +933,10 @@ do
 end
 
 -- ==========================================
--- 9. NÚCLEO
+-- 9. NÚCLEO: MOVIMENTO, VISUAIS, PERFORMANCE, ESP, HOOK
 -- ==========================================
 
+-- ---------- 9.1 Movimento ----------
 function Mv.restoreSpeed()
 	local hum = getHum()
 	if hum and Original.Speed then hum.WalkSpeed = Original.Speed end
@@ -1015,6 +1012,7 @@ function Mv.moveVector()
 	return Vector3.zero
 end
 
+-- ---------- 9.2 Visuais ----------
 local Vis = {}
 function Vis.restoreFullbright()
 	if Vis.fb then
@@ -1030,6 +1028,7 @@ function Vis.restoreFog()
 	end
 end
 
+-- ---------- 9.3 Performance ----------
 local alSet = setmetatable({}, {__mode = "k"})
 local alPost = {}
 local alConn
@@ -1188,6 +1187,7 @@ local function guardTick(fps)
 	Perf.Status = Perf.Lite and "Boosting" or "Monitoring"
 end
 
+-- ---------- 9.4 Utilitários ----------
 local afkConn, rejoinConn
 
 local function setAntiAfk(on)
@@ -1253,6 +1253,7 @@ local function installHook()
 	return ok
 end
 
+-- ---------- 9.5 ESP ----------
 local ESPFolder = create("Folder", {Name = "ShadowESP", Parent = ParentGui})
 local ESP = {Providers = {}, Enabled = {}, Entries = {}, MaxDist = 800, Limit = 40}
 
@@ -1360,27 +1361,37 @@ end)
 -- 10. ABAS PRINCIPAIS
 -- ==========================================
 
--- HOME
+-- ---------- 10.1 HOME ----------
 do
 	local HomeScroll = createTab("Home", ICONS.Home, true, ORDER.Home)
 
+	-- Card da Home Reestilizado com a Imagem do Usuário e Avatar
 	local card = create("Frame", {
-		Size = UDim2.new(1, -8, 0, 72), BackgroundColor3 = COLORS.Card, BackgroundTransparency = 0.2, BorderSizePixel = 0,
+		Size = UDim2.new(1, -8, 0, 80), BackgroundColor3 = COLORS.Card, BorderSizePixel = 0,
 		LayoutOrder = nextOrder(HomeScroll), Parent = HomeScroll,
 	})
 	corner(card, 12)
 	stroke(card, COLORS.Stroke, 1)
+
+	local customImgCard = create("ImageLabel", {
+		Size = UDim2.fromOffset(56, 56), Position = UDim2.new(0, 12, 0.5, -28),
+		BackgroundColor3 = COLORS.CardHeader, Image = CUSTOM_IMAGE_URL, Parent = card, ScaleType = Enum.ScaleType.Crop,
+	})
+	corner(customImgCard, 28)
+	stroke(customImgCard, COLORS.Accent, 1.5, 0.2)
+
 	Refs.homeAvatar = create("ImageLabel", {
-		Size = UDim2.fromOffset(48, 48), Position = UDim2.new(0, 14, 0.5, -24),
+		Size = UDim2.fromOffset(36, 36), Position = UDim2.new(0, 76, 0.5, -18),
 		BackgroundColor3 = COLORS.CardHeader, Image = "", Parent = card,
 	})
-	corner(Refs.homeAvatar, 24)
-	stroke(Refs.homeAvatar, COLORS.Accent, 1.5, 0.2)
-	label({Size = UDim2.new(1, -90, 0, 14), Position = UDim2.new(0, 74, 0, 14), Text = "Welcome back,",
+	corner(Refs.homeAvatar, 18)
+	stroke(Refs.homeAvatar, COLORS.AccentGlow, 1)
+
+	label({Size = UDim2.new(1, -125, 0, 14), Position = UDim2.new(0, 120, 0, 18), Text = "Welcome back,",
 		TextSize = 11, TextColor3 = COLORS.TextDark, Parent = card})
-	label({Size = UDim2.new(1, -90, 0, 20), Position = UDim2.new(0, 74, 0, 32),
+	label({Size = UDim2.new(1, -125, 0, 20), Position = UDim2.new(0, 120, 0, 36),
 		Text = LocalPlayer.DisplayName .. " (@" .. LocalPlayer.Name .. ")", Font = Enum.Font.GothamBold,
-		TextSize = 14, TextTruncate = Enum.TextTruncate.AtEnd, Parent = card})
+		TextSize = 13, TextTruncate = Enum.TextTruncate.AtEnd, Parent = card})
 
 	task.spawn(function()
 		local ok, img = pcall(function()
@@ -1398,7 +1409,7 @@ do
 	create("UIGridLayout", {CellSize = UDim2.new(0.235, 0, 1, 0), CellPadding = UDim2.new(0.02, 0, 0, 0),
 		SortOrder = Enum.SortOrder.LayoutOrder, Parent = grid})
 	local function statBox(title, initial)
-		local box = create("Frame", {BackgroundColor3 = COLORS.Card, BackgroundTransparency = 0.2, BorderSizePixel = 0,
+		local box = create("Frame", {BackgroundColor3 = COLORS.Card, BorderSizePixel = 0,
 			LayoutOrder = nextOrder(grid), Parent = grid})
 		corner(box, 10)
 		stroke(box, COLORS.Stroke, 1)
@@ -1426,10 +1437,10 @@ do
 	end)
 
 	local about = AddSection(HomeScroll, "About")
-	AddText(about, "Dark Shadow Hub v4.2\nMenu: botão flutuante" .. (IS_TOUCH and "" or " ou tecla (padrão Right Shift)") .. ". Arraste a sidebar ou o cabeçalho para mover. Scripts de jogo aparecem sozinhos, só no jogo certo. Performance Guard ligado por padrão.")
+	AddText(about, "Dark Shadow Hub v4.2\nMenu: botão flutuante com a sua imagem customizada" .. (IS_TOUCH and "" or " ou tecla (padrão Right Shift)") .. ". Arraste a sidebar ou o cabeçalho para mover. Performance Guard e Anti-Lag integrados.")
 end
 
--- PLAYER
+-- ---------- 10.2 PLAYER ----------
 do
 	local scroll = createTab("Player", ICONS.Player, true, ORDER.Player)
 
@@ -1472,7 +1483,7 @@ do
 	end)
 end
 
--- MAIN
+-- ---------- 10.3 MAIN ----------
 do
 	local page = createTab("Main", ICONS.Main, false, ORDER.Main)
 	local group = createSubGroup("Main", page)
@@ -1626,7 +1637,7 @@ do
 	AddButton(actions, "Server Hop", serverHop)
 end
 
--- SETTINGS
+-- ---------- 10.4 SETTINGS ----------
 local UnloadHub
 do
 	local scroll = createTab("Settings", ICONS.Settings, true, ORDER.Settings)
@@ -1638,7 +1649,7 @@ do
 		label({Size = UDim2.new(1, -130, 1, 0), Position = UDim2.new(0, 14, 0, 0), Text = "Menu Keybind", Parent = row})
 		Refs.keyBtn = create("TextButton", {
 			Size = UDim2.fromOffset(96, 26), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -14, 0.5, 0),
-			BackgroundColor3 = COLORS.CardHeader, BackgroundTransparency = 0.3, Text = toggleKey.Name, TextColor3 = COLORS.TextMain, TextSize = 11,
+			BackgroundColor3 = COLORS.CardHeader, Text = toggleKey.Name, TextColor3 = COLORS.TextMain, TextSize = 11,
 			Font = Enum.Font.GothamBold, AutoButtonColor = false, Parent = row,
 		})
 		corner(Refs.keyBtn, 6)
@@ -4068,7 +4079,7 @@ do
 			if fbMoved then
 				local s = screenSize()
 				local p = fbStart + delta
-				p = Vector2.new(math.clamp(p.X, 0, math.max(0, s.X - 48)), math.clamp(p.Y, 0, math.max(0, s.Y - 48)))
+				p = Vector2.new(math.clamp(p.X, 0, math.max(0, s.X - 54)), math.clamp(p.Y, 0, math.max(0, s.Y - 54)))
 				FloatingBtn.Position = UDim2.fromOffset(p.X, p.Y)
 			end
 		end,
