@@ -1,6 +1,6 @@
 -- ================================================================= --
 --   DARK SHADOW HUB v5.0  |  COSMIC EDITION                          --
---   Tema espacial (vinho + carmesim + rosa), estrelas, planeta,      --
+--   Tema espacial (azul elétrico + relâmpago), estrelas, planeta,    --
 --   Auto Merge "carrega e junta" com CLONE FANTASMA invisível,       --
 --   Auto Rebirth / Upgrade silenciosos, sons, scripts por jogo.      --
 -- ================================================================= --
@@ -18,6 +18,7 @@
 --  11. Sistema de scripts por jogo
 --  12. Jogo: Merge a Mini Army
 --  13. Jogo: Blox Fruits
+--  13B. Jogo: Murder Mystery 2 (MM2)
 --  14. Loops, abrir/fechar, arraste, unload, inicialização
 -- ================================================================= --
 
@@ -70,27 +71,26 @@ local function corner(inst, r)
 	return create("UICorner", {CornerRadius = UDim.new(0, r), Parent = inst})
 end
 
--- Paleta tirada da imagem: fundo vinho escuro, vermelho da mesa (accent),
--- rosa dos olhos / luz da janela (glow) e branco-prateado do cabelo e do vestido
+-- Paleta tirada da imagem: preto-azulado profundo, azul elétrico, relâmpago branco-azulado
 local COLORS = {
-	Background   = Color3.fromRGB(14, 9, 12),
-	Sidebar      = Color3.fromRGB(20, 12, 16),
-	Card         = Color3.fromRGB(30, 18, 24),
-	CardHeader   = Color3.fromRGB(50, 24, 34),
-	CardHover    = Color3.fromRGB(82, 34, 52),
-	SubTabBg     = Color3.fromRGB(34, 20, 28),
-	SubTabActive = Color3.fromRGB(88, 28, 50),
-	Accent       = Color3.fromRGB(205, 45, 85),
-	AccentDark   = Color3.fromRGB(130, 20, 52),
-	AccentGlow   = Color3.fromRGB(245, 120, 150),
-	Cyan         = Color3.fromRGB(248, 214, 224),
-	Star         = Color3.fromRGB(240, 236, 248),
-	TextMain     = Color3.fromRGB(246, 242, 248),
-	TextDark     = Color3.fromRGB(168, 140, 152),
-	Stroke       = Color3.fromRGB(74, 30, 48),
-	SwitchOff    = Color3.fromRGB(44, 24, 32),
+	Background   = Color3.fromRGB(3, 5, 16),
+	Sidebar      = Color3.fromRGB(4, 8, 24),
+	Card         = Color3.fromRGB(7, 12, 36),
+	CardHeader   = Color3.fromRGB(11, 20, 62),
+	CardHover    = Color3.fromRGB(18, 34, 96),
+	SubTabBg     = Color3.fromRGB(8, 14, 42),
+	SubTabActive = Color3.fromRGB(14, 36, 112),
+	Accent       = Color3.fromRGB(24, 78, 255),
+	AccentDark   = Color3.fromRGB(8, 38, 190),
+	AccentGlow   = Color3.fromRGB(80, 150, 255),
+	Cyan         = Color3.fromRGB(110, 215, 255),
+	Star         = Color3.fromRGB(205, 228, 255),
+	TextMain     = Color3.fromRGB(226, 238, 255),
+	TextDark     = Color3.fromRGB(108, 134, 190),
+	Stroke       = Color3.fromRGB(16, 32, 98),
+	SwitchOff    = Color3.fromRGB(14, 22, 62),
 	Green        = Color3.fromRGB(80, 220, 140),
-	Danger       = Color3.fromRGB(220, 70, 60),
+	Danger       = Color3.fromRGB(200, 60, 90),
 	Gold         = Color3.fromRGB(255, 205, 60),
 }
 
@@ -176,33 +176,6 @@ local ICONS = {
 	Shield   = "rbxassetid://10734938450",
 	Bolt     = "rbxassetid://10734950309",
 }
-
--- IMAGEM DO TEMA (baixa a imagem da URL e usa nos visuais do hub)
--- Precisa de writefile + getcustomasset (a maioria dos executores tem).
--- Sem eles o hub abre normal, só sem a imagem.
-local ART_URL = "https://i.ibb.co/DPGwbqvh/4d2c0c3a-c13f-460c-81c5-94333fdf1b2c.jpg"
-local Art = {id = nil, labels = {}}
-
-function Art.Register(lbl)
-	Art.labels[#Art.labels + 1] = lbl
-	if Art.id then lbl.Image = Art.id end
-end
-
-task.spawn(function()
-	if not (writefile and getcustomasset) then return end
-	local file = "DarkShadowHub_art.jpg"
-	local ok = pcall(function()
-		writefile(file, game:HttpGet(ART_URL))
-	end)
-	if not ok then return end
-	local ok2, id = pcall(getcustomasset, file)
-	if ok2 and id then
-		Art.id = id
-		for _, l in ipairs(Art.labels) do
-			if l.Parent then l.Image = id end
-		end
-	end
-end)
 
 -- EFEITOS SONOROS
 local Sfx = {
@@ -302,7 +275,7 @@ local InputBlocker = create("TextButton", {
 	Text = "", Visible = false, Modal = true, ZIndex = 1, Parent = ScreenGui,
 })
 
--- Botão flutuante (anel rosa pulsante)
+-- Botão flutuante (anel azul pulsante)
 local FloatingBtn = create("Frame", {
 	Name = "FloatingButton", Size = UDim2.fromOffset(48, 48), Position = UDim2.new(0, 16, 0.3, 0),
 	BackgroundColor3 = COLORS.Sidebar, BorderSizePixel = 0, Active = true, ZIndex = 10, Parent = ScreenGui,
@@ -310,7 +283,7 @@ local FloatingBtn = create("Frame", {
 corner(FloatingBtn, 24)
 local BtnStroke = stroke(FloatingBtn, COLORS.AccentGlow, 1.5, 0.2)
 create("UIGradient", {
-	Color = ColorSequence.new(Color3.fromRGB(88, 24, 52), Color3.fromRGB(14, 8, 12)),
+	Color = ColorSequence.new(Color3.fromRGB(14, 30, 100), Color3.fromRGB(2, 5, 20)),
 	Rotation = 90, Parent = FloatingBtn,
 })
 create("ImageLabel", {
@@ -336,11 +309,11 @@ corner(MainFrame, 16)
 create("UIGradient", {
 	Color = ColorSequence.new({
 		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 205, 220)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 185, 255)),
 	}),
 	Rotation = 90, Parent = MainFrame,
 })
--- Borda com degradê carmesim → rosa claro que gira devagar (efeito de energia)
+-- Borda com degradê azul → ciano que gira devagar (efeito de energia)
 do
 	local ms = stroke(MainFrame, COLORS.AccentGlow, 1.6, 0.25)
 	local g = create("UIGradient", {
@@ -381,14 +354,14 @@ do
 	glow(0.85, 0.7, 340)
 	glow(0.5, 0.95, 260)
 
-	-- planeta com anel
+	-- planeta com anel (como o pequeno planeta da imagem)
 	local planet = create("Frame", {
 		AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -22, 1, -16), Size = UDim2.fromOffset(54, 54),
 		BackgroundColor3 = COLORS.Accent, BackgroundTransparency = 0.25, BorderSizePixel = 0, ZIndex = 0, Parent = StarContainer,
 	})
 	corner(planet, 27)
 	create("UIGradient", {
-		Color = ColorSequence.new(COLORS.Cyan, Color3.fromRGB(50, 10, 26)), Rotation = 45, Parent = planet,
+		Color = ColorSequence.new(COLORS.Cyan, Color3.fromRGB(4, 10, 50)), Rotation = 45, Parent = planet,
 	})
 	local ring = create("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(100, 22),
@@ -438,27 +411,6 @@ do
 			end
 		end
 	end)
-end
-
--- Imagem do tema como fundo suave no canto superior direito da janela
--- (recorte da parte de cima da imagem: cabelo e rosto, some em degradê)
-do
-	local bg = create("ImageLabel", {
-		Name = "ArtBackground", AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0),
-		Size = UDim2.fromScale(0.46, 0.8), BackgroundTransparency = 1, Image = "",
-		ImageTransparency = 0.8, ScaleType = Enum.ScaleType.Crop,
-		ImageRectOffset = Vector2.new(560, 0), ImageRectSize = Vector2.new(464, 400),
-		ZIndex = 0, Parent = MainFrame,
-	})
-	create("UIGradient", {
-		Transparency = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 1),
-			NumberSequenceKeypoint.new(0.45, 0.35),
-			NumberSequenceKeypoint.new(1, 0),
-		}),
-		Rotation = 0, Parent = bg,
-	})
-	Art.Register(bg)
 end
 
 local DragGhost = create("Frame", {
@@ -822,7 +774,7 @@ local function AddSection(parent, title, tab, sub)
 	corner(frame, 12)
 	stroke(frame, COLORS.Stroke, 1)
 	create("UIGradient", {
-		Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 215, 228)),
+		Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(170, 200, 255)),
 		Rotation = 90, Parent = frame,
 	})
 	create("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 2), Parent = frame})
@@ -969,7 +921,7 @@ local function AddButton(sec, title, callback, danger)
 	local row = create("Frame", {Size = UDim2.new(1, 0, 0, IS_TOUCH and 44 or 40), BackgroundTransparency = 1,
 		LayoutOrder = nextOrder(sec.Frame), Parent = sec.Frame})
 	local base = danger and COLORS.Danger or COLORS.CardHeader
-	local over = danger and Color3.fromRGB(240, 100, 90) or COLORS.CardHover
+	local over = danger and Color3.fromRGB(225, 80, 110) or COLORS.CardHover
 	local btn = create("TextButton", {
 		Size = UDim2.new(1, -28, 0, 34), Position = UDim2.new(0, 14, 0.5, -17), BackgroundColor3 = base,
 		Text = title, TextColor3 = COLORS.TextMain, TextSize = 12, Font = Enum.Font.GothamBold,
@@ -1523,7 +1475,7 @@ do
 	corner(card, 12)
 	stroke(card, COLORS.AccentDark, 1, 0.2)
 	create("UIGradient", {
-		Color = ColorSequence.new(Color3.fromRGB(255, 200, 215), Color3.fromRGB(255, 255, 255)), Parent = card,
+		Color = ColorSequence.new(Color3.fromRGB(150, 190, 255), Color3.fromRGB(255, 255, 255)), Parent = card,
 	})
 	Refs.homeAvatar = create("ImageLabel", {
 		Size = UDim2.fromOffset(48, 48), Position = UDim2.new(0, 14, 0.5, -24),
@@ -1531,22 +1483,11 @@ do
 	})
 	corner(Refs.homeAvatar, 24)
 	stroke(Refs.homeAvatar, COLORS.Cyan, 1.5, 0.2)
-	label({Size = UDim2.new(1, -150, 0, 14), Position = UDim2.new(0, 74, 0, 14), Text = "Welcome aboard, commander",
+	label({Size = UDim2.new(1, -90, 0, 14), Position = UDim2.new(0, 74, 0, 14), Text = "Welcome aboard, commander",
 		TextSize = 11, TextColor3 = COLORS.AccentGlow, Parent = card})
-	label({Size = UDim2.new(1, -150, 0, 20), Position = UDim2.new(0, 74, 0, 32),
+	label({Size = UDim2.new(1, -90, 0, 20), Position = UDim2.new(0, 74, 0, 32),
 		Text = LocalPlayer.DisplayName .. " (@" .. LocalPlayer.Name .. ")", Font = Enum.Font.GothamBold,
 		TextSize = 14, TextTruncate = Enum.TextTruncate.AtEnd, Parent = card})
-
-	-- Retrato do tema (recorte do rosto da imagem) no lado direito do card
-	local portrait = create("ImageLabel", {
-		Name = "ThemePortrait", Size = UDim2.fromOffset(56, 56), AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -14, 0.5, 0), BackgroundColor3 = COLORS.CardHeader, Image = "",
-		ScaleType = Enum.ScaleType.Crop, ImageRectOffset = Vector2.new(650, 150), ImageRectSize = Vector2.new(240, 240),
-		Parent = card,
-	})
-	corner(portrait, 28)
-	stroke(portrait, COLORS.AccentGlow, 1.8, 0.1)
-	Art.Register(portrait)
 
 	task.spawn(function()
 		local ok, img = pcall(function()
@@ -4230,6 +4171,498 @@ RegisterGame({
 			ESP.SetEnabled("BFChests", false)
 			ESP.SetEnabled("BFFruits", false)
 			target, targetPart = nil, nil
+		end)
+	end,
+})
+
+-- ================================================================= --
+-- 13B. JOGO: MURDER MYSTERY 2 (MM2)
+--  Sub-abas: Farm | ESP
+--
+--  AUTO COINS        -> voa até as moedas do mapa (CoinContainer) e coleta.
+--  AUTO EVENT COINS  -> coleta moedas/itens de evento (candy, tokens...).
+--  AUTO GUN          -> quando o sheriff morre e a arma cai (GunDrop), vai
+--                       até ela e pega (e volta para onde estava).
+--  ROLE ESP          -> Murder = VERMELHO (quem tem a faca)
+--                       Sheriff = AZUL (quem tem a arma)
+--                       Inocentes = VERDE (cor própria, não mistura)
+--  Os papéis são lidos pelas ferramentas "Knife" e "Gun" do jogador.
+-- ================================================================= --
+RegisterGame({
+	Name = "Murder Mystery 2",
+	TabName = "MM2",
+	Icon = ICONS.Combat,
+	PlaceIds = {142823291},
+	GameIds = {},
+	Names = {"Murder Mystery 2"},
+	Build = function(ctx)
+		-- 1) ESTADO E CONFIGURAÇÃO
+		local running = true
+		local status = "Idle"
+		local stats = {coins = 0, guns = 0}
+		local tried = setmetatable({}, {__mode = "k"})
+		local vals = {}
+		local togs = {}
+		local cfg = {
+			Coins = false, Event = false, Gun = false, GunReturn = true,
+			Speed = 60, EventWords = {},
+			ESP = false, ShowMurder = true, ShowSheriff = true, ShowInnocent = true,
+		}
+
+		local ROLE_COLOR = {
+			Murder   = Color3.fromRGB(255, 40, 40),    -- vermelho
+			Sheriff  = Color3.fromRGB(40, 120, 255),   -- azul
+			Innocent = COLORS.Green,                   -- verde (combina com o hub e não mistura)
+		}
+		local ROLE_TEXT = {Murder = "MURDERER", Sheriff = "SHERIFF", Innocent = "INNOCENT"}
+		local KNIFE = {"knife"}
+		local GUN = {"gun", "revolver"}
+		local DEFAULT_EVENT = {"candy", "pumpkin", "snow", "egg", "gift", "present", "token", "ticket", "clover", "bone", "crystal", "orb", "event"}
+
+		-- 2) UTILITÁRIOS
+		local function partOf(inst)
+			if inst:IsA("BasePart") then return inst end
+			if inst:IsA("Model") then
+				return inst.PrimaryPart or inst:FindFirstChildWhichIsA("BasePart", true)
+			end
+			return nil
+		end
+
+		local function toolIn(container, words)
+			if not container then return false end
+			for _, t in ipairs(container:GetChildren()) do
+				if t:IsA("Tool") then
+					local n = string.lower(t.Name)
+					if hasAny(n, words) and not string.find(n, "fake", 1, true) then return true end
+				end
+			end
+			return false
+		end
+
+		-- Papel do jogador: quem tem a faca é o Murder, quem tem a arma é o Sheriff
+		local function roleOf(pl)
+			local ch = pl.Character
+			local bp = pl:FindFirstChildOfClass("Backpack")
+			if toolIn(ch, KNIFE) or toolIn(bp, KNIFE) then return "Murder" end
+			if toolIn(ch, GUN) or toolIn(bp, GUN) then return "Sheriff" end
+			return "Innocent"
+		end
+
+		local function iAmMurder()
+			return roleOf(LocalPlayer) == "Murder"
+		end
+
+		local function hasGun()
+			return toolIn(LocalPlayer.Character, GUN) or toolIn(LocalPlayer:FindFirstChildOfClass("Backpack"), GUN)
+		end
+
+		local function findRoles()
+			local m, s
+			for _, pl in ipairs(Players:GetPlayers()) do
+				local r = roleOf(pl)
+				if r == "Murder" then m = pl elseif r == "Sheriff" then s = pl end
+			end
+			return m, s
+		end
+
+		local function touch(root, part)
+			if typeof(firetouchinterest) == "function" then
+				pcall(firetouchinterest, root, part, 0)
+				task.delay(0.1, function()
+					pcall(firetouchinterest, root, part, 1)
+				end)
+			else
+				root.CFrame = part.CFrame
+			end
+		end
+
+		-- 3) MOVIMENTO (desliza o corpo até o alvo; devolve a distância que falta)
+		local function moveToward(goal, dt)
+			local root = getRoot()
+			if not root then return math.huge end
+			local cur = root.Position
+			local delta = goal - cur
+			local dist = delta.Magnitude
+			local step = cfg.Speed * dt
+			local rot = root.CFrame - root.CFrame.Position
+			if dist <= step then
+				root.CFrame = CFrame.new(goal) * rot
+				root.AssemblyLinearVelocity = Vector3.zero
+				return 0
+			end
+			root.CFrame = CFrame.new(cur + delta.Unit * step) * rot
+			root.AssemblyLinearVelocity = Vector3.zero
+			return dist - step
+		end
+
+		-- 4) MOEDAS (normais e de evento)
+		local coinList = {}
+		local extraList = {}
+		local container, lastFind, lastScan, lastExtra = nil, 0, 0, 0
+		local coinTarget = nil
+		local coinFails, coinPauseUntil = 0, 0
+
+		local function getContainer(now)
+			if container and container.Parent and container:IsDescendantOf(workspace) then return container end
+			container = nil
+			if now - lastFind < 2 then return nil end
+			lastFind = now
+			for _, c in ipairs(workspace:GetChildren()) do
+				if (c:IsA("Model") or c:IsA("Folder")) and not Players:GetPlayerFromCharacter(c) then
+					local cc = c:FindFirstChild("CoinContainer", true)
+					if cc then
+						container = cc
+						break
+					end
+				end
+			end
+			return container
+		end
+
+		-- Dentro do CoinContainer: CoinID diferente de "Coin" (ou nome sem "coin") = moeda de evento
+		local function isEventInst(inst)
+			local id = inst:GetAttribute("CoinID")
+			local n = string.lower(inst.Name)
+			if id ~= nil then
+				return string.lower(tostring(id)) ~= "coin"
+			end
+			if hasAny(n, cfg.EventWords) or hasAny(n, DEFAULT_EVENT) then return true end
+			return not string.find(n, "coin", 1, true)
+		end
+
+		local function refreshCoins(now)
+			if now - lastScan < 0.5 then return end
+			lastScan = now
+			local list, seen = {}, {}
+			local cc = getContainer(now)
+			if cc then
+				for _, inst in ipairs(cc:GetChildren()) do
+					local part = partOf(inst)
+					if part and part.Parent and not seen[part] then
+						seen[part] = true
+						list[#list + 1] = {part = part, kind = isEventInst(inst) and "Event" or "Coin"}
+					end
+				end
+			end
+			-- itens de evento soltos pelo mapa (fora do CoinContainer)
+			if cfg.Event then
+				if now - lastExtra > 2.5 then
+					lastExtra = now
+					local ex, n = {}, 0
+					local function check(inst)
+						if inst:IsA("BasePart") and inst:FindFirstChild("TouchInterest") then
+							local ln = string.lower(inst.Name)
+							if hasAny(ln, cfg.EventWords) or hasAny(ln, DEFAULT_EVENT) then
+								ex[#ex + 1] = {part = inst, kind = "Event"}
+							end
+						end
+					end
+					for _, c in ipairs(workspace:GetChildren()) do
+						if not c:IsA("Camera") and not Players:GetPlayerFromCharacter(c) then
+							check(c)
+							if c:IsA("Model") or c:IsA("Folder") then
+								for _, g in ipairs(c:GetChildren()) do
+									check(g)
+									n = n + 1
+									if n > 2500 then break end
+								end
+							end
+						end
+					end
+					extraList = ex
+				end
+				for _, e in ipairs(extraList) do
+					if e.part.Parent and not seen[e.part] then
+						seen[e.part] = true
+						list[#list + 1] = e
+					end
+				end
+			else
+				extraList = {}
+			end
+			coinList = list
+		end
+
+		local function wantedKind(kind)
+			return (kind == "Coin" and cfg.Coins) or (kind == "Event" and cfg.Event)
+		end
+
+		local function nextCoin(now)
+			local root = getRoot()
+			if not root then return nil end
+			local best, bestD = nil, math.huge
+			for _, c in ipairs(coinList) do
+				local part = c.part
+				if part and part.Parent and wantedKind(c.kind) then
+					local t = tried[part]
+					if not t or now >= t then
+						local d = (part.Position - root.Position).Magnitude
+						if d < bestD then best, bestD = c, d end
+					end
+				end
+			end
+			return best
+		end
+
+		local function collected(part)
+			return (not part.Parent) or part.Transparency >= 0.95 or part:GetAttribute("Collected") == true
+		end
+
+		local function coinStep(now, dt)
+			refreshCoins(now)
+			if now < coinPauseUntil then
+				status = "Bag full? waiting"
+				return false
+			end
+			local c = coinTarget
+			if not (c and c.part and c.part.Parent and wantedKind(c.kind)) then
+				c = nextCoin(now)
+				coinTarget = c
+			end
+			if not c then
+				status = "No coins"
+				return false
+			end
+			local root = getRoot()
+			if not root then return false end
+			local part = c.part
+			status = c.kind == "Event" and "Collecting event coin" or "Collecting coin"
+			local dist = moveToward(part.Position + Vector3.new(0, 1.5, 0), dt)
+			if dist <= 5 then
+				coinTarget = nil
+				tried[part] = os.clock() + 3
+				touch(root, part)
+				task.wait(0.3)
+				if collected(part) then
+					coinFails = 0
+					stats.coins = stats.coins + 1
+				else
+					coinFails = coinFails + 1
+					if coinFails >= 5 then
+						coinFails = 0
+						coinPauseUntil = os.clock() + 10
+					end
+				end
+			end
+			return true
+		end
+
+		-- 5) ARMA DROPADA
+		local gun = {origin = nil, t0 = 0, retryAt = 0}
+		local dropCache, dropT, dropDeep = nil, 0, 0
+
+		local function findGunDrop(now)
+			if dropCache and dropCache.Parent then return dropCache end
+			dropCache = nil
+			if now - dropT < 0.25 then return nil end
+			dropT = now
+			local d = workspace:FindFirstChild("GunDrop")
+			if not d and now - dropDeep > 3 then
+				dropDeep = now
+				d = workspace:FindFirstChild("GunDrop", true)
+			end
+			dropCache = d
+			return d
+		end
+
+		local function gunFinish(ok)
+			local root = getRoot()
+			if gun.origin and root and cfg.GunReturn and not (cfg.Coins or cfg.Event) then
+				root.CFrame = gun.origin
+				root.AssemblyLinearVelocity = Vector3.zero
+			end
+			gun.origin = nil
+			gun.t0 = 0
+			gun.retryAt = os.clock() + (ok and 2 or 4)
+		end
+
+		local function gunStep(drop, now, dt)
+			local part = partOf(drop)
+			local root = getRoot()
+			if not part or not root then
+				gunFinish(false)
+				return false
+			end
+			if now - gun.t0 > 12 then
+				gunFinish(false)
+				return false
+			end
+			status = "Grabbing gun"
+			local dist = moveToward(part.Position + Vector3.new(0, 1.5, 0), dt)
+			if dist <= 4 then
+				touch(root, part)
+				task.wait(0.3)
+				if hasGun() then
+					stats.guns = stats.guns + 1
+					ctx.Notify("MM2", "Gun picked up", 2.5)
+					gunFinish(true)
+				end
+			end
+			return true
+		end
+
+		-- 6) CÉREBRO (arma tem prioridade, depois moedas)
+		local function brainTick(now, dt)
+			local hum, root = getHum(), getRoot()
+			if not hum or not root or hum.Health <= 0 then
+				status = "Waiting for respawn"
+				gun.origin = nil
+				coinTarget = nil
+				return
+			end
+
+			if cfg.Gun then
+				local drop = findGunDrop(now)
+				if gun.origin and (not drop or iAmMurder() or hasGun()) then
+					gunFinish(hasGun())
+				elseif drop and not gun.origin and now >= gun.retryAt and not iAmMurder() and not hasGun() then
+					gun.origin, gun.t0 = root.CFrame, now
+				end
+				if gun.origin and drop then
+					if gunStep(drop, now, dt) then return end
+				end
+			elseif gun.origin then
+				gunFinish(false)
+			end
+
+			if cfg.Coins or cfg.Event then
+				if coinStep(now, dt) then return end
+			end
+
+			if not gun.origin then
+				status = (cfg.Coins or cfg.Event or cfg.Gun) and "Waiting" or "Idle"
+			end
+		end
+
+		-- 7) ESP DE PAPÉIS (Murder vermelho / Sheriff azul / resto verde)
+		ESP.Register("MM2Roles", function()
+			local out = {}
+			for _, pl in ipairs(Players:GetPlayers()) do
+				if pl ~= LocalPlayer then
+					local ch = pl.Character
+					local root = ch and ch:FindFirstChild("HumanoidRootPart")
+					local hum = ch and ch:FindFirstChildOfClass("Humanoid")
+					if root and hum and hum.Health > 0 then
+						local role = roleOf(pl)
+						if (role == "Murder" and cfg.ShowMurder) or (role == "Sheriff" and cfg.ShowSheriff)
+							or (role == "Innocent" and cfg.ShowInnocent) then
+							out[#out + 1] = {part = root, hl = ch, text = ROLE_TEXT[role] .. " - " .. pl.DisplayName,
+								color = ROLE_COLOR[role]}
+						end
+					end
+				end
+			end
+			return out
+		end)
+
+		-- 8) INTERFACE: Farm | ESP
+		local pFarm = ctx.Page("Farm", ctx.Icons.Economy)
+		do
+			local sec = pFarm.Section("Auto Collect")
+			togs.Coins = AddToggle(sec, "Auto Coins", "Flies to the map coins and collects them", false, function(on)
+				cfg.Coins = on
+				coinTarget = nil
+			end)
+			togs.Event = AddToggle(sec, "Auto Event Coins", "Collects event items (candy, tokens, etc.)", false, function(on)
+				cfg.Event = on
+				coinTarget = nil
+			end)
+			togs.Gun = AddToggle(sec, "Auto Grab Dropped Gun", "Takes the gun when the sheriff dies", false, function(on)
+				cfg.Gun = on
+				if not on and gun.origin then gunFinish(false) end
+			end)
+			AddToggle(sec, "Return after grabbing gun", "Goes back to where you were", cfg.GunReturn, function(on)
+				cfg.GunReturn = on
+			end)
+			AddSlider(sec, "Move speed", 20, 200, cfg.Speed, 5, " st/s", function(v) cfg.Speed = v end)
+			AddInput(sec, "Extra event words", "ex: candy, snow", "", function(text)
+				cfg.EventWords = splitWords(text)
+				lastExtra = 0
+				ctx.Notify("Event coins", #cfg.EventWords > 0 and (#cfg.EventWords .. " word(s) added") or "Default words", 2)
+			end)
+
+			local ss = pFarm.Section("Status")
+			vals.Status = AddInfo(ss, "Status", "Idle")
+			vals.Coins = AddInfo(ss, "Coins collected", "0")
+			vals.Guns = AddInfo(ss, "Guns grabbed", "0")
+			vals.Found = AddInfo(ss, "Coins on map", "0")
+			vals.Drop = AddInfo(ss, "Dropped gun", "No")
+			vals.Role = AddInfo(ss, "My role", "-")
+			vals.Murder = AddInfo(ss, "Murderer", "-")
+			vals.Sheriff = AddInfo(ss, "Sheriff", "-")
+			AddText(ss, "Ligue Auto Coins durante a rodada: o script voa até a moeda mais próxima e coleta. Se a bolsa encher, ele espera uns segundos e tenta de novo. Auto Gun só pega a arma se você não for o murder.")
+		end
+
+		local pEsp = ctx.Page("ESP", ctx.Icons.Search)
+		do
+			local es = pEsp.Section("Role ESP")
+			togs.ESP = AddToggle(es, "Role ESP", "Red = Murderer, Blue = Sheriff, Green = Innocent", false, function(on)
+				cfg.ESP = on
+				if on then
+					-- desliga o ESP genérico para não sobrepor as cores
+					ESP.SetEnabled("Players", false)
+					if Refs.espPlayers then Refs.espPlayers.Set(false, true) end
+				end
+				ESP.SetEnabled("MM2Roles", on)
+			end)
+			AddToggle(es, "Show Murderer", "Who holds the knife", true, function(on) cfg.ShowMurder = on end)
+			AddToggle(es, "Show Sheriff", "Who holds the gun", true, function(on) cfg.ShowSheriff = on end)
+			AddToggle(es, "Show Innocents", "Everyone else", true, function(on) cfg.ShowInnocent = on end)
+			AddSlider(es, "ESP max distance", 100, 2000, ESP.MaxDist, 50, "", function(v) ESP.MaxDist = v end)
+			AddText(es, "Cores: vermelho = murder (faca), azul = sheriff (arma), verde = inocentes. Ao ligar o Role ESP, o Players ESP comum é desligado para as cores não se misturarem.")
+		end
+
+		-- 9) LOOPS EM SEGUNDO PLANO
+		task.spawn(function()
+			local lastErr = 0
+			while running and ctx.ScreenGui.Parent do
+				if cfg.Coins or cfg.Event or cfg.Gun or gun.origin then
+					local dt = math.min(RunService.Heartbeat:Wait(), 0.1)
+					local now = os.clock()
+					local ok, err = pcall(brainTick, now, dt)
+					if not ok and now - lastErr > 5 then
+						lastErr = now
+						warn("[ShadowHub] MM2: " .. tostring(err))
+					end
+				else
+					status = "Idle"
+					coinTarget = nil
+					task.wait(0.3)
+				end
+			end
+		end)
+
+		-- Atualiza os contadores 2x/s, só com a aba visível
+		task.spawn(function()
+			while running and ctx.ScreenGui.Parent do
+				task.wait(0.5)
+				if ctx.IsVisible() then
+					pcall(function()
+						local m, s = findRoles()
+						local nc = 0
+						for _, c in ipairs(coinList) do
+							if c.part.Parent then nc = nc + 1 end
+						end
+						vals.Status.Text = status
+						vals.Coins.Text = tostring(stats.coins)
+						vals.Guns.Text = tostring(stats.guns)
+						vals.Found.Text = tostring(nc)
+						vals.Drop.Text = (dropCache and dropCache.Parent) and "Yes" or "No"
+						vals.Role.Text = ROLE_TEXT[roleOf(LocalPlayer)]
+						vals.Murder.Text = m and m.DisplayName or "-"
+						vals.Sheriff.Text = s and s.DisplayName or "-"
+					end)
+				end
+			end
+		end)
+
+		-- 10) DESCARREGAR
+		ctx.OnUnload(function()
+			running = false
+			cfg.Coins, cfg.Event, cfg.Gun, cfg.ESP = false, false, false, false
+			ESP.SetEnabled("MM2Roles", false)
+			coinTarget = nil
+			gun.origin = nil
 		end)
 	end,
 })
