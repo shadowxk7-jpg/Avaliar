@@ -18,7 +18,7 @@
 --  11. Sistema de scripts por jogo
 --  12. Jogo: Merge a Mini Army
 --  13. Jogo: Blox Fruits
---  13B. Jogo: Murder Mystery 2 (MM2)
+--  13b. Jogo: Murder Mystery 2 (MM2) - Auto Farm de moedas/doces AFK
 --  14. Loops, abrir/fechar, arraste, unload, inicialização
 -- ================================================================= --
 
@@ -4176,51 +4176,137 @@ RegisterGame({
 })
 
 -- ================================================================= --
--- 13B. JOGO: MURDER MYSTERY 2 (MM2)
---  Sub-abas: Farm | ESP
+-- 13b. JOGO: MURDER MYSTERY 2 (MM2)
+--  Sub-abas: Auto Farm | Status
 --
---  AUTO COINS        -> voa até as moedas do mapa (CoinContainer) e coleta.
---  AUTO EVENT COINS  -> coleta moedas/itens de evento (candy, tokens...).
---  AUTO GUN          -> quando o sheriff morre e a arma cai (GunDrop), vai
---                       até ela e pega (e volta para onde estava).
---  ROLE ESP          -> Murder = VERMELHO (quem tem a faca)
---                       Sheriff = AZUL (quem tem a arma)
---                       Inocentes = VERDE (cor própria, não mistura)
---  Os papéis são lidos pelas ferramentas "Knife" e "Gun" do jogador.
+--  AUTO FARM AFK DE MOEDAS / DOCES (ciclo completo):
+--   1) Você fica parado no LOBBY enquanto o mapa é escolhido.
+--   2) Quando todos são levados ao MAPA, o script detecta que você
+--      está dentro dele e espera a CONTAGEM acabar (papéis de
+--      inocente / assassino / xerife ainda escondidos).
+--   3) Passada a contagem (ou quando o jogo revela os papéis), ele
+--      sai pegando todas as moedas e doces do mapa, uma por uma.
+--   4) Terminou de pegar (mochila cheia / sem moedas / limite que
+--      você definir), ele dá RESET e você volta para o LOBBY.
+--   5) Fica parado no lobby até a próxima rodada e repete tudo.
+--
+--  Movimento por deslize suave (anti-kick) com noclip e segurador
+--  de altura só durante a coleta, para não cair do mapa.
 -- ================================================================= --
 RegisterGame({
 	Name = "Murder Mystery 2",
 	TabName = "MM2",
-	Icon = ICONS.Combat,
+	Icon = ICONS.Economy,
 	PlaceIds = {142823291},
 	GameIds = {},
-	Names = {"Murder Mystery 2"},
+	Names = {"Murder Mystery 2", "Murder Mystery", "Murder Mistery", "MM2"},
+	Detect = function()
+		local rs = game:GetService("ReplicatedStorage")
+		local rem = rs:FindFirstChild("Remotes")
+		local gp = rem and rem:FindFirstChild("Gameplay")
+		return gp ~= nil and (gp:FindFirstChild("RoleSelect") ~= nil or gp:FindFirstChild("CoinCollected") ~= nil)
+	end,
 	Build = function(ctx)
-		-- 1) ESTADO E CONFIGURAÇÃO
+		local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+		local RS = game:GetService("ReplicatedStorage")
 		local running = true
-		local status = "Idle"
-		local stats = {coins = 0, guns = 0}
-		local tried = setmetatable({}, {__mode = "k"})
-		local vals = {}
-		local togs = {}
+
 		local cfg = {
-			Coins = false, Event = false, Gun = false, GunReturn = true,
-			Speed = 60, EventWords = {},
-			ESP = false, ShowMurder = true, ShowSheriff = true, ShowInnocent = true,
+			Farm = false,
+			Candy = true,          -- também pega doces / itens de evento
+			Reset = true,          -- dá reset ao terminar a coleta
+			AntiAfk = true,        -- liga o Anti-AFK junto com o farm
+			Teleport = false,      -- false = desliza (seguro) | true = teleporte (arriscado)
+			Speed = 26,            -- studs por segundo (deslize)
+			StartDelay = 8,        -- espera máxima após entrar no mapa (contagem / papéis)
+			AfterRole = 1.5,       -- espera extra depois que os papéis são revelados
+			MaxCoins = 40,         -- limite de moedas por rodada (tamanho da mochila)
+			MaxAttempts = 90,      -- segurança: tentativas máximas por rodada
+			ResetWait = 0.4,       -- pausa antes de dar reset
 		}
 
-		local ROLE_COLOR = {
-			Murder   = Color3.fromRGB(255, 40, 40),    -- vermelho
-			Sheriff  = Color3.fromRGB(40, 120, 255),   -- azul
-			Innocent = COLORS.Green,                   -- verde (combina com o hub e não mistura)
-		}
-		local ROLE_TEXT = {Murder = "MURDERER", Sheriff = "SHERIFF", Innocent = "INNOCENT"}
-		local KNIFE = {"knife"}
-		local GUN = {"gun", "revolver"}
-		local DEFAULT_EVENT = {"candy", "pumpkin", "snow", "egg", "gift", "present", "token", "ticket", "clover", "bone", "crystal", "orb", "event"}
+		local stats = {rounds = 0, total = 0, last = "-"}
+		local state = "Off"
+		local session = nil          -- dados da rodada atual
+		local finishedFor = nil      -- container da rodada já finalizada
+		local goneSince = nil
+		local roleAt, coinEvt, fullFlagAt = 0, 0, 0
+		local cool = setmetatable({}, {__mode = "k"})
+		local ctl = {}
+		local vals = {}
 
-		-- 2) UTILITÁRIOS
-		local function partOf(inst)
+		local function setState(s) state = s end
+
+		local function active()
+			return running and ctx.ScreenGui.Parent ~= nil and cfg.Farm
+		end
+
+		-- ======================================================
+		-- A) SINAIS DO JOGO (papéis revelados / moeda coletada)
+		-- ======================================================
+		task.spawn(function()
+			local hooked = {}
+			for _ = 1, 20 do
+				if not running then return end
+				for _, name in ipairs({"RoleSelect", "CoinCollected"}) do
+					if not hooked[name] then
+						local r = RS:FindFirstChild(name, true)
+						if r and r:IsA("RemoteEvent") then
+							hooked[name] = true
+							ctx.track(r.OnClientEvent:Connect(function(...)
+								if name == "RoleSelect" then
+									roleAt = os.clock()
+								else
+									coinEvt = os.clock()
+									local a = table.pack(...)
+									local nums = {}
+									for i = 1, a.n do
+										if type(a[i]) == "number" then nums[#nums + 1] = a[i] end
+									end
+									local n = #nums
+									if n >= 2 and nums[n] >= 10 and nums[n - 1] >= nums[n] then
+										fullFlagAt = os.clock()
+									end
+								end
+							end))
+						end
+					end
+				end
+				if hooked.RoleSelect and hooked.CoinCollected then return end
+				task.wait(1.5)
+			end
+		end)
+
+		-- ======================================================
+		-- B) MAPA, MOEDAS E DOCES
+		-- ======================================================
+		local container, lastDeep = nil, 0
+		local function findContainer()
+			if container and container.Parent then return container end
+			container = nil
+			local direct = workspace:FindFirstChild("CoinContainer")
+			if direct then
+				container = direct
+				return container
+			end
+			for _, c in ipairs(workspace:GetChildren()) do
+				if c.Name ~= "Camera" and not c:IsA("Terrain") then
+					local cc = c:FindFirstChild("CoinContainer")
+					if cc then
+						container = cc
+						return container
+					end
+				end
+			end
+			if os.clock() - lastDeep > 3 then
+				lastDeep = os.clock()
+				local d = workspace:FindFirstChild("CoinContainer", true)
+				if d then container = d end
+			end
+			return container
+		end
+
+		local function coinPart(inst)
 			if inst:IsA("BasePart") then return inst end
 			if inst:IsA("Model") then
 				return inst.PrimaryPart or inst:FindFirstChildWhichIsA("BasePart", true)
@@ -4228,441 +4314,475 @@ RegisterGame({
 			return nil
 		end
 
-		local function toolIn(container, words)
-			if not container then return false end
-			for _, t in ipairs(container:GetChildren()) do
-				if t:IsA("Tool") then
-					local n = string.lower(t.Name)
-					if hasAny(n, words) and not string.find(n, "fake", 1, true) then return true end
-				end
+		local function isPlayerPart(inst)
+			local cur = inst
+			while cur and cur ~= workspace do
+				if cur:IsA("Model") and Players:GetPlayerFromCharacter(cur) then return true end
+				cur = cur.Parent
 			end
 			return false
 		end
 
-		-- Papel do jogador: quem tem a faca é o Murder, quem tem a arma é o Sheriff
-		local function roleOf(pl)
-			local ch = pl.Character
-			local bp = pl:FindFirstChildOfClass("Backpack")
-			if toolIn(ch, KNIFE) or toolIn(bp, KNIFE) then return "Murder" end
-			if toolIn(ch, GUN) or toolIn(bp, GUN) then return "Sheriff" end
-			return "Innocent"
-		end
-
-		local function iAmMurder()
-			return roleOf(LocalPlayer) == "Murder"
-		end
-
-		local function hasGun()
-			return toolIn(LocalPlayer.Character, GUN) or toolIn(LocalPlayer:FindFirstChildOfClass("Backpack"), GUN)
-		end
-
-		local function findRoles()
-			local m, s
-			for _, pl in ipairs(Players:GetPlayers()) do
-				local r = roleOf(pl)
-				if r == "Murder" then m = pl elseif r == "Sheriff" then s = pl end
-			end
-			return m, s
-		end
-
-		local function touch(root, part)
-			if typeof(firetouchinterest) == "function" then
-				pcall(firetouchinterest, root, part, 0)
-				task.delay(0.1, function()
-					pcall(firetouchinterest, root, part, 1)
-				end)
-			else
-				root.CFrame = part.CFrame
-			end
-		end
-
-		-- 3) MOVIMENTO (desliza o corpo até o alvo; devolve a distância que falta)
-		local function moveToward(goal, dt)
-			local root = getRoot()
-			if not root then return math.huge end
-			local cur = root.Position
-			local delta = goal - cur
-			local dist = delta.Magnitude
-			local step = cfg.Speed * dt
-			local rot = root.CFrame - root.CFrame.Position
-			if dist <= step then
-				root.CFrame = CFrame.new(goal) * rot
-				root.AssemblyLinearVelocity = Vector3.zero
-				return 0
-			end
-			root.CFrame = CFrame.new(cur + delta.Unit * step) * rot
-			root.AssemblyLinearVelocity = Vector3.zero
-			return dist - step
-		end
-
-		-- 4) MOEDAS (normais e de evento)
-		local coinList = {}
-		local extraList = {}
-		local container, lastFind, lastScan, lastExtra = nil, 0, 0, 0
-		local coinTarget = nil
-		local coinFails, coinPauseUntil = 0, 0
-
-		local function getContainer(now)
-			if container and container.Parent and container:IsDescendantOf(workspace) then return container end
-			container = nil
-			if now - lastFind < 2 then return nil end
-			lastFind = now
-			for _, c in ipairs(workspace:GetChildren()) do
-				if (c:IsA("Model") or c:IsA("Folder")) and not Players:GetPlayerFromCharacter(c) then
-					local cc = c:FindFirstChild("CoinContainer", true)
-					if cc then
-						container = cc
-						break
+		local EVENT_WORDS = {"candy", "sweet", "lollipop", "egg", "snowflake", "pumpkin", "token"}
+		local evCache = {t = 0, list = {}}
+		local function refreshEvents(cont)
+			local now = os.clock()
+			if now - evCache.t < 3 then return end
+			evCache.t = now
+			local list, seen, n = {}, {}, 0
+			local function check(i)
+				if (i:IsA("BasePart") or i:IsA("Model")) and hasAny(string.lower(i.Name), EVENT_WORDS) then
+					local p = coinPart(i)
+					if p and not seen[p] and not isPlayerPart(p) then
+						seen[p] = true
+						list[#list + 1] = p
 					end
 				end
 			end
-			return container
-		end
-
-		-- Dentro do CoinContainer: CoinID diferente de "Coin" (ou nome sem "coin") = moeda de evento
-		local function isEventInst(inst)
-			local id = inst:GetAttribute("CoinID")
-			local n = string.lower(inst.Name)
-			if id ~= nil then
-				return string.lower(tostring(id)) ~= "coin"
+			for _, c in ipairs(workspace:GetChildren()) do check(c) end
+			local map = cont and cont.Parent
+			if map and map ~= workspace then
+				for _, d in ipairs(map:GetDescendants()) do
+					check(d)
+					n = n + 1
+					if n > 4000 then break end
+				end
 			end
-			if hasAny(n, cfg.EventWords) or hasAny(n, DEFAULT_EVENT) then return true end
-			return not string.find(n, "coin", 1, true)
+			evCache.list = list
 		end
 
-		local function refreshCoins(now)
-			if now - lastScan < 0.5 then return end
-			lastScan = now
+		local function gather(cont)
 			local list, seen = {}, {}
-			local cc = getContainer(now)
-			if cc then
-				for _, inst in ipairs(cc:GetChildren()) do
-					local part = partOf(inst)
-					if part and part.Parent and not seen[part] then
-						seen[part] = true
-						list[#list + 1] = {part = part, kind = isEventInst(inst) and "Event" or "Coin"}
+			if cont then
+				for _, d in ipairs(cont:GetChildren()) do
+					local p = coinPart(d)
+					if p and not seen[p] then
+						seen[p] = true
+						list[#list + 1] = p
 					end
 				end
 			end
-			-- itens de evento soltos pelo mapa (fora do CoinContainer)
-			if cfg.Event then
-				if now - lastExtra > 2.5 then
-					lastExtra = now
-					local ex, n = {}, 0
-					local function check(inst)
-						if inst:IsA("BasePart") and inst:FindFirstChild("TouchInterest") then
-							local ln = string.lower(inst.Name)
-							if hasAny(ln, cfg.EventWords) or hasAny(ln, DEFAULT_EVENT) then
-								ex[#ex + 1] = {part = inst, kind = "Event"}
+			if cfg.Candy then
+				refreshEvents(cont)
+				for _, p in ipairs(evCache.list) do
+					if p.Parent and not seen[p] then
+						seen[p] = true
+						list[#list + 1] = p
+					end
+				end
+			end
+			return list
+		end
+
+		-- Você está dentro do mapa? (caixa do modelo do mapa, com folga)
+		local boxCache = {t = 0, cf = nil, size = nil, map = nil}
+		local function amInMap(cont, coins, root)
+			local map = cont.Parent
+			if map and map:IsA("Model") and map ~= workspace then
+				local now = os.clock()
+				if boxCache.map ~= map or now - boxCache.t > 5 then
+					boxCache.map, boxCache.t = map, now
+					local ok, cf, size = pcall(function() return map:GetBoundingBox() end)
+					if ok then boxCache.cf, boxCache.size = cf, size else boxCache.cf = nil end
+				end
+				if boxCache.cf then
+					local rel = boxCache.cf:PointToObjectSpace(root.Position)
+					local h = boxCache.size / 2
+					return math.abs(rel.X) <= h.X + 30 and math.abs(rel.Y) <= h.Y + 120 and math.abs(rel.Z) <= h.Z + 30
+				end
+			end
+			for i = 1, #coins do
+				if (coins[i].Position - root.Position).Magnitude <= 300 then return true end
+			end
+			return false
+		end
+
+		-- Mochila cheia (leitura da interface do jogo, quando existir)
+		local bagGui, bagT, bagRes = nil, 0, false
+		local function bagFullUI()
+			local now = os.clock()
+			if now - bagT < 1.5 then return bagRes end
+			bagT = now
+			bagRes = false
+			pcall(function()
+				if not (bagGui and bagGui.Parent) then
+					local main = PlayerGui:FindFirstChild("MainGUI")
+					bagGui = main and main:FindFirstChild("CoinBags", true) or nil
+				end
+				if bagGui then
+					for _, d in ipairs(bagGui:GetDescendants()) do
+						if d:IsA("GuiObject") and string.lower(d.Name) == "full" and d.Visible then
+							local shown, cur = true, d.Parent
+							while cur and cur ~= bagGui do
+								if cur:IsA("GuiObject") and not cur.Visible then shown = false break end
+								cur = cur.Parent
+							end
+							if shown then
+								bagRes = true
+								break
 							end
 						end
 					end
-					for _, c in ipairs(workspace:GetChildren()) do
-						if not c:IsA("Camera") and not Players:GetPlayerFromCharacter(c) then
-							check(c)
-							if c:IsA("Model") or c:IsA("Folder") then
-								for _, g in ipairs(c:GetChildren()) do
-									check(g)
-									n = n + 1
-									if n > 2500 then break end
-								end
-							end
-						end
-					end
-					extraList = ex
 				end
-				for _, e in ipairs(extraList) do
-					if e.part.Parent and not seen[e.part] then
-						seen[e.part] = true
-						list[#list + 1] = e
-					end
+			end)
+			return bagRes
+		end
+
+		-- ======================================================
+		-- C) MOVIMENTO: segurador de altura + noclip + deslize
+		-- ======================================================
+		local holdBV, holdActive = nil, false
+		local nocChar, noclipT, noclipParts = nil, 0, {}
+
+		local function ensureHold(root)
+			if holdBV and holdBV.Parent == root then
+				holdActive = true
+				return
+			end
+			if holdBV then holdBV:Destroy() end
+			holdBV = Instance.new("BodyVelocity")
+			holdBV.Name = "DSHold"
+			holdBV.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+			holdBV.Velocity = Vector3.zero
+			holdBV.Parent = root
+			holdActive = true
+		end
+
+		local function releaseHold()
+			holdActive = false
+			if holdBV then
+				holdBV:Destroy()
+				holdBV = nil
+			end
+		end
+
+		ctx.track(RunService.Stepped:Connect(function()
+			if not holdActive then return end
+			local char = LocalPlayer.Character
+			if not char then return end
+			local now = os.clock()
+			if char ~= nocChar or now - noclipT > 1.5 then
+				nocChar, noclipT = char, now
+				table.clear(noclipParts)
+				for _, d in ipairs(char:GetDescendants()) do
+					if d:IsA("BasePart") then noclipParts[#noclipParts + 1] = d end
 				end
-			else
-				extraList = {}
 			end
-			coinList = list
-		end
+			for i = 1, #noclipParts do
+				local p = noclipParts[i]
+				if p.CanCollide then p.CanCollide = false end
+			end
+		end))
 
-		local function wantedKind(kind)
-			return (kind == "Coin" and cfg.Coins) or (kind == "Event" and cfg.Event)
-		end
-
-		local function nextCoin(now)
-			local root = getRoot()
-			if not root then return nil end
-			local best, bestD = nil, math.huge
-			for _, c in ipairs(coinList) do
-				local part = c.part
-				if part and part.Parent and wantedKind(c.kind) then
-					local t = tried[part]
-					if not t or now >= t then
-						local d = (part.Position - root.Position).Magnitude
-						if d < bestD then best, bestD = c, d end
-					end
-				end
-			end
-			return best
-		end
-
-		local function collected(part)
-			return (not part.Parent) or part.Transparency >= 0.95 or part:GetAttribute("Collected") == true
-		end
-
-		local function coinStep(now, dt)
-			refreshCoins(now)
-			if now < coinPauseUntil then
-				status = "Bag full? waiting"
-				return false
-			end
-			local c = coinTarget
-			if not (c and c.part and c.part.Parent and wantedKind(c.kind)) then
-				c = nextCoin(now)
-				coinTarget = c
-			end
-			if not c then
-				status = "No coins"
-				return false
-			end
+		local function moveTo(pos)
 			local root = getRoot()
 			if not root then return false end
-			local part = c.part
-			status = c.kind == "Event" and "Collecting event coin" or "Collecting coin"
-			local dist = moveToward(part.Position + Vector3.new(0, 1.5, 0), dt)
-			if dist <= 5 then
-				coinTarget = nil
-				tried[part] = os.clock() + 3
-				touch(root, part)
-				task.wait(0.3)
-				if collected(part) then
-					coinFails = 0
-					stats.coins = stats.coins + 1
-				else
-					coinFails = coinFails + 1
-					if coinFails >= 5 then
-						coinFails = 0
-						coinPauseUntil = os.clock() + 10
-					end
+			ensureHold(root)
+			if cfg.Teleport then
+				root.CFrame = CFrame.new(pos)
+				root.AssemblyLinearVelocity = Vector3.zero
+				return true
+			end
+			local t0 = os.clock()
+			while active() do
+				root = getRoot()
+				local hum = getHum()
+				if not root or not hum or hum.Health <= 0 then return false end
+				local cur = root.Position
+				local d = pos - cur
+				local dist = d.Magnitude
+				if dist <= 1.2 then
+					root.AssemblyLinearVelocity = Vector3.zero
+					return true
 				end
-			end
-			return true
-		end
-
-		-- 5) ARMA DROPADA
-		local gun = {origin = nil, t0 = 0, retryAt = 0}
-		local dropCache, dropT, dropDeep = nil, 0, 0
-
-		local function findGunDrop(now)
-			if dropCache and dropCache.Parent then return dropCache end
-			dropCache = nil
-			if now - dropT < 0.25 then return nil end
-			dropT = now
-			local d = workspace:FindFirstChild("GunDrop")
-			if not d and now - dropDeep > 3 then
-				dropDeep = now
-				d = workspace:FindFirstChild("GunDrop", true)
-			end
-			dropCache = d
-			return d
-		end
-
-		local function gunFinish(ok)
-			local root = getRoot()
-			if gun.origin and root and cfg.GunReturn and not (cfg.Coins or cfg.Event) then
-				root.CFrame = gun.origin
+				if os.clock() - t0 > 12 then return false end
+				local dt = RunService.Heartbeat:Wait()
+				root = getRoot()
+				if not root then return false end
+				local step = math.min(dist, cfg.Speed * dt)
+				root.CFrame = CFrame.new(cur + d.Unit * step) * (root.CFrame - root.CFrame.Position)
 				root.AssemblyLinearVelocity = Vector3.zero
 			end
-			gun.origin = nil
-			gun.t0 = 0
-			gun.retryAt = os.clock() + (ok and 2 or 4)
+			return false
 		end
 
-		local function gunStep(drop, now, dt)
-			local part = partOf(drop)
+		local function touch(p)
 			local root = getRoot()
-			if not part or not root then
-				gunFinish(false)
+			if not root or not p.Parent or not firetouchinterest then return end
+			pcall(function()
+				firetouchinterest(root, p, 0)
+				firetouchinterest(root, p, 1)
+			end)
+		end
+
+		-- Vai até uma moeda/doce e confirma se coletou
+		local function collectOne(p)
+			setState("Collecting")
+			local hadVisual = p:FindFirstChild("CoinVisual") ~= nil
+			if not moveTo(p.Position) then
+				cool[p] = os.clock() + 6
 				return false
 			end
-			if now - gun.t0 > 12 then
-				gunFinish(false)
-				return false
-			end
-			status = "Grabbing gun"
-			local dist = moveToward(part.Position + Vector3.new(0, 1.5, 0), dt)
-			if dist <= 4 then
-				touch(root, part)
-				task.wait(0.3)
-				if hasGun() then
-					stats.guns = stats.guns + 1
-					ctx.Notify("MM2", "Gun picked up", 2.5)
-					gunFinish(true)
+			local t0 = os.clock()
+			touch(p)
+			local waited, ok = 0, false
+			while waited < 0.45 and active() do
+				task.wait(0.05)
+				waited = waited + 0.05
+				if coinEvt >= t0 or not p.Parent or (hadVisual and not p:FindFirstChild("CoinVisual")) then
+					ok = true
+					break
 				end
 			end
-			return true
+			cool[p] = os.clock() + (ok and 120 or 5)
+			return ok
 		end
 
-		-- 6) CÉREBRO (arma tem prioridade, depois moedas)
-		local function brainTick(now, dt)
+		-- ======================================================
+		-- D) FIM DE RODADA: RESET E VOLTA PARA O LOBBY
+		-- ======================================================
+		local function finishRound(reason, cont)
+			finishedFor = cont
+			releaseHold()
+			local got = session and session.got or 0
+			stats.rounds = stats.rounds + 1
+			stats.total = stats.total + got
+			stats.last = reason
+			session = nil
+			ctx.Notify("MM2 Farm", reason .. " (" .. got .. " collected)", 3, true)
+			if cfg.Reset then
+				setState("Resetting...")
+				task.wait(cfg.ResetWait)
+				local hum, char = getHum(), LocalPlayer.Character
+				if hum then hum.Health = 0 end
+				task.wait(1.5)
+				local hum2 = getHum()
+				if hum2 and hum2.Health > 0 and char and char.Parent then
+					pcall(function() char:BreakJoints() end)
+				end
+			else
+				setState("Round finished (reset off)")
+			end
+		end
+
+		-- ======================================================
+		-- E) CICLO PRINCIPAL: lobby -> mapa -> contagem -> coleta -> reset
+		-- ======================================================
+		local function cycle()
 			local hum, root = getHum(), getRoot()
 			if not hum or not root or hum.Health <= 0 then
-				status = "Waiting for respawn"
-				gun.origin = nil
-				coinTarget = nil
+				releaseHold()
+				setState("Waiting respawn")
 				return
 			end
 
-			if cfg.Gun then
-				local drop = findGunDrop(now)
-				if gun.origin and (not drop or iAmMurder() or hasGun()) then
-					gunFinish(hasGun())
-				elseif drop and not gun.origin and now >= gun.retryAt and not iAmMurder() and not hasGun() then
-					gun.origin, gun.t0 = root.CFrame, now
-				end
-				if gun.origin and drop then
-					if gunStep(drop, now, dt) then return end
-				end
-			elseif gun.origin then
-				gunFinish(false)
+			local cont = findContainer()
+			if not cont then
+				releaseHold()
+				session = nil
+				goneSince = goneSince or os.clock()
+				if os.clock() - goneSince > 2 then finishedFor = nil end
+				setState("Lobby - waiting for round")
+				return
+			end
+			goneSince = nil
+
+			local coins = gather(cont)
+			if not amInMap(cont, coins, root) then
+				releaseHold()
+				session = nil
+				finishedFor = nil
+				setState("Lobby - waiting teleport to map")
+				return
 			end
 
-			if cfg.Coins or cfg.Event then
-				if coinStep(now, dt) then return end
+			if cont == finishedFor then
+				releaseHold()
+				setState(cfg.Reset and "Resetting..." or "Round finished (reset off)")
+				return
 			end
 
-			if not gun.origin then
-				status = (cfg.Coins or cfg.Event or cfg.Gun) and "Waiting" or "Idle"
+			local now = os.clock()
+			if not session or session.cont ~= cont then
+				session = {cont = cont, t0 = now, got = 0, fails = 0, attempts = 0,
+					seen = false, noCoin = 0, idle = 0, roleAt = nil}
 			end
-		end
 
-		-- 7) ESP DE PAPÉIS (Murder vermelho / Sheriff azul / resto verde)
-		ESP.Register("MM2Roles", function()
-			local out = {}
-			for _, pl in ipairs(Players:GetPlayers()) do
-				if pl ~= LocalPlayer then
-					local ch = pl.Character
-					local root = ch and ch:FindFirstChild("HumanoidRootPart")
-					local hum = ch and ch:FindFirstChildOfClass("Humanoid")
-					if root and hum and hum.Health > 0 then
-						local role = roleOf(pl)
-						if (role == "Murder" and cfg.ShowMurder) or (role == "Sheriff" and cfg.ShowSheriff)
-							or (role == "Innocent" and cfg.ShowInnocent) then
-							out[#out + 1] = {part = root, hl = ch, text = ROLE_TEXT[role] .. " - " .. pl.DisplayName,
-								color = ROLE_COLOR[role]}
-						end
+			-- Contagem / papéis ainda escondidos
+			local hasTool = false
+			local bp, char = LocalPlayer:FindFirstChildOfClass("Backpack"), LocalPlayer.Character
+			if (bp and (bp:FindFirstChild("Knife") or bp:FindFirstChild("Gun")))
+				or (char and (char:FindFirstChild("Knife") or char:FindFirstChild("Gun"))) then
+				hasTool = true
+			end
+			if not session.roleAt and (roleAt >= session.t0 - 10 and roleAt > 0 or hasTool) then
+				session.roleAt = now
+			end
+			local ready = (session.roleAt and now - session.roleAt >= cfg.AfterRole) or (now - session.t0 >= cfg.StartDelay)
+			if not ready then
+				local left = session.roleAt and (cfg.AfterRole - (now - session.roleAt)) or (cfg.StartDelay - (now - session.t0))
+				setState("Countdown / roles (" .. math.max(1, math.ceil(left)) .. "s)")
+				return
+			end
+
+			-- Moedas ainda não apareceram / acabaram
+			if #coins == 0 then
+				if session.seen then
+					session.noCoin = session.noCoin + 1
+					if session.noCoin >= 10 then
+						finishRound("No coins left", cont)
+						return
 					end
 				end
+				setState("Waiting coins to spawn")
+				return
 			end
-			return out
+			session.seen = true
+			session.noCoin = 0
+
+			-- Condições de fim de coleta
+			if session.got >= cfg.MaxCoins then
+				finishRound("Bag full", cont)
+				return
+			end
+			if session.got >= 5 and (fullFlagAt > session.t0 or bagFullUI()) then
+				finishRound("Bag full", cont)
+				return
+			end
+			if session.fails >= 8 or session.attempts >= cfg.MaxAttempts then
+				finishRound("Stuck / bag full", cont)
+				return
+			end
+
+			-- Próxima moeda: a mais próxima fora de cooldown
+			local best, bd
+			local rp = root.Position
+			for i = 1, #coins do
+				local p = coins[i]
+				if (cool[p] or 0) < now then
+					local d = (p.Position - rp).Magnitude
+					if not bd or d < bd then best, bd = p, d end
+				end
+			end
+			if not best then
+				session.idle = session.idle + 1
+				setState("Waiting coins (cooldown)")
+				if session.idle >= 20 then finishRound("No reachable coins", cont) end
+				return
+			end
+			session.idle = 0
+
+			local ok = collectOne(best)
+			if session then
+				session.attempts = session.attempts + 1
+				if ok then
+					session.got = session.got + 1
+					session.fails = 0
+				else
+					session.fails = session.fails + 1
+				end
+			end
+		end
+
+		task.spawn(function()
+			while running and ctx.ScreenGui.Parent do
+				if cfg.Farm then
+					local ok, err = pcall(cycle)
+					if not ok then
+						warn("[ShadowHub] MM2: " .. tostring(err))
+						releaseHold()
+						task.wait(1)
+					end
+					task.wait(0.15)
+				else
+					if holdActive then releaseHold() end
+					session = nil
+					setState("Off")
+					task.wait(0.4)
+				end
+			end
+			releaseHold()
 		end)
 
-		-- 8) INTERFACE: Farm | ESP
-		local pFarm = ctx.Page("Farm", ctx.Icons.Economy)
+		-- ======================================================
+		-- F) INTERFACE: Auto Farm | Status
+		-- ======================================================
+		local pf = ctx.Page("Auto Farm", ctx.Icons.Economy)
 		do
-			local sec = pFarm.Section("Auto Collect")
-			togs.Coins = AddToggle(sec, "Auto Coins", "Flies to the map coins and collects them", false, function(on)
-				cfg.Coins = on
-				coinTarget = nil
-			end)
-			togs.Event = AddToggle(sec, "Auto Event Coins", "Collects event items (candy, tokens, etc.)", false, function(on)
-				cfg.Event = on
-				coinTarget = nil
-			end)
-			togs.Gun = AddToggle(sec, "Auto Grab Dropped Gun", "Takes the gun when the sheriff dies", false, function(on)
-				cfg.Gun = on
-				if not on and gun.origin then gunFinish(false) end
-			end)
-			AddToggle(sec, "Return after grabbing gun", "Goes back to where you were", cfg.GunReturn, function(on)
-				cfg.GunReturn = on
-			end)
-			AddSlider(sec, "Move speed", 20, 200, cfg.Speed, 5, " st/s", function(v) cfg.Speed = v end)
-			AddInput(sec, "Extra event words", "ex: candy, snow", "", function(text)
-				cfg.EventWords = splitWords(text)
-				lastExtra = 0
-				ctx.Notify("Event coins", #cfg.EventWords > 0 and (#cfg.EventWords .. " word(s) added") or "Default words", 2)
-			end)
-
-			local ss = pFarm.Section("Status")
-			vals.Status = AddInfo(ss, "Status", "Idle")
-			vals.Coins = AddInfo(ss, "Coins collected", "0")
-			vals.Guns = AddInfo(ss, "Guns grabbed", "0")
-			vals.Found = AddInfo(ss, "Coins on map", "0")
-			vals.Drop = AddInfo(ss, "Dropped gun", "No")
-			vals.Role = AddInfo(ss, "My role", "-")
-			vals.Murder = AddInfo(ss, "Murderer", "-")
-			vals.Sheriff = AddInfo(ss, "Sheriff", "-")
-			AddText(ss, "Ligue Auto Coins durante a rodada: o script voa até a moeda mais próxima e coleta. Se a bolsa encher, ele espera uns segundos e tenta de novo. Auto Gun só pega a arma se você não for o murder.")
-		end
-
-		local pEsp = ctx.Page("ESP", ctx.Icons.Search)
-		do
-			local es = pEsp.Section("Role ESP")
-			togs.ESP = AddToggle(es, "Role ESP", "Red = Murderer, Blue = Sheriff, Green = Innocent", false, function(on)
-				cfg.ESP = on
+			local main = pf.Section("AFK Coin / Candy Farm")
+			ctl.Farm = AddToggle(main, "Auto Farm Coins / Candy", "Lobby > map > countdown > collect > reset > repeat", false, function(on)
+				cfg.Farm = on
+				finishedFor, session = nil, nil
 				if on then
-					-- desliga o ESP genérico para não sobrepor as cores
-					ESP.SetEnabled("Players", false)
-					if Refs.espPlayers then Refs.espPlayers.Set(false, true) end
-				end
-				ESP.SetEnabled("MM2Roles", on)
-			end)
-			AddToggle(es, "Show Murderer", "Who holds the knife", true, function(on) cfg.ShowMurder = on end)
-			AddToggle(es, "Show Sheriff", "Who holds the gun", true, function(on) cfg.ShowSheriff = on end)
-			AddToggle(es, "Show Innocents", "Everyone else", true, function(on) cfg.ShowInnocent = on end)
-			AddSlider(es, "ESP max distance", 100, 2000, ESP.MaxDist, 50, "", function(v) ESP.MaxDist = v end)
-			AddText(es, "Cores: vermelho = murder (faca), azul = sheriff (arma), verde = inocentes. Ao ligar o Role ESP, o Players ESP comum é desligado para as cores não se misturarem.")
-		end
-
-		-- 9) LOOPS EM SEGUNDO PLANO
-		task.spawn(function()
-			local lastErr = 0
-			while running and ctx.ScreenGui.Parent do
-				if cfg.Coins or cfg.Event or cfg.Gun or gun.origin then
-					local dt = math.min(RunService.Heartbeat:Wait(), 0.1)
-					local now = os.clock()
-					local ok, err = pcall(brainTick, now, dt)
-					if not ok and now - lastErr > 5 then
-						lastErr = now
-						warn("[ShadowHub] MM2: " .. tostring(err))
+					if cfg.AntiAfk then ctx.SetAntiAfk(true) end
+					if not firetouchinterest then
+						ctx.Notify("MM2 Farm", "Executor lacks firetouchinterest: body contact only", 4)
 					end
 				else
-					status = "Idle"
-					coinTarget = nil
-					task.wait(0.3)
+					releaseHold()
 				end
-			end
-		end)
+			end)
+			AddToggle(main, "Collect candy / event items", "Also picks candy and other event items on the map", cfg.Candy, function(on)
+				cfg.Candy = on
+				evCache.t = 0
+			end)
+			AddToggle(main, "Reset after farming", "Resets your character when done and waits in the lobby", cfg.Reset, function(on) cfg.Reset = on end)
+			AddToggle(main, "Anti-AFK while farming", "Prevents the idle kick during long AFK", cfg.AntiAfk, function(on)
+				cfg.AntiAfk = on
+				if cfg.Farm then ctx.SetAntiAfk(on) end
+			end)
+			AddToggle(main, "AFK FPS Boost", "Lowest graphics while idle", false, function(on) ctx.SetLowGfx(on) end)
+			AddToggle(main, "AFK Disable 3D Rendering", "Black screen, minimum CPU/GPU", false, function(on) ctx.SetNoRender(on) end)
 
-		-- Atualiza os contadores 2x/s, só com a aba visível
+			local mv = pf.Section("Movement")
+			AddToggle(mv, "Instant teleport (risky)", "Off = smooth glide (safer against kicks)", cfg.Teleport, function(on) cfg.Teleport = on end)
+			AddSlider(mv, "Glide speed", 10, 120, cfg.Speed, 1, " st/s", function(v) cfg.Speed = v end)
+
+			local tm = pf.Section("Timing and limits")
+			AddSlider(tm, "Max wait after map (countdown)", 0, 30, cfg.StartDelay, 1, "s", function(v) cfg.StartDelay = v end)
+			AddSlider(tm, "Extra wait after roles", 0, 5, cfg.AfterRole, 0.5, "s", function(v) cfg.AfterRole = v end)
+			AddSlider(tm, "Max coins per round", 10, 100, cfg.MaxCoins, 1, "", function(v) cfg.MaxCoins = v end)
+			AddSlider(tm, "Wait before reset", 0, 5, cfg.ResetWait, 0.1, "s", function(v) cfg.ResetWait = v end)
+
+			local ht = pf.Section("How it works")
+			AddText(ht, "Ligue Auto Farm Coins / Candy e deixe o personagem parado no lobby. Quando o mapa abre e todos são levados para ele, o script espera a contagem acabar e os papéis (inocente, assassino, xerife) serem revelados, coleta todas as moedas e doces e dá Reset. Você volta ao lobby e fica parado até a próxima rodada, repetindo sozinho.")
+			AddText(ht, "Durante a coleta o corpo fica sem colisão e preso na altura certa, então não cai do mapa. Se aparecer kick, diminua a Glide speed e deixe o teleporte desligado.")
+		end
+
+		local ps = ctx.Page("Status", ctx.Icons.Shield)
+		do
+			local st = ps.Section("Live Status")
+			vals.State  = AddInfo(st, "State", "Off")
+			vals.Got    = AddInfo(st, "Collected this round", "0")
+			vals.Rounds = AddInfo(st, "Rounds finished", "0")
+			vals.Total  = AddInfo(st, "Total collected", "0")
+			vals.Last   = AddInfo(st, "Last round ended by", "-")
+			vals.Map    = AddInfo(st, "Map detected", "No")
+			AddButton(st, "Reset counters", function()
+				stats.rounds, stats.total, stats.last = 0, 0, "-"
+				ctx.Notify("MM2 Farm", "Counters cleared", 2, true)
+			end)
+		end
+
 		task.spawn(function()
 			while running and ctx.ScreenGui.Parent do
-				task.wait(0.5)
+				task.wait(1)
 				if ctx.IsVisible() then
-					pcall(function()
-						local m, s = findRoles()
-						local nc = 0
-						for _, c in ipairs(coinList) do
-							if c.part.Parent then nc = nc + 1 end
-						end
-						vals.Status.Text = status
-						vals.Coins.Text = tostring(stats.coins)
-						vals.Guns.Text = tostring(stats.guns)
-						vals.Found.Text = tostring(nc)
-						vals.Drop.Text = (dropCache and dropCache.Parent) and "Yes" or "No"
-						vals.Role.Text = ROLE_TEXT[roleOf(LocalPlayer)]
-						vals.Murder.Text = m and m.DisplayName or "-"
-						vals.Sheriff.Text = s and s.DisplayName or "-"
-					end)
+					vals.State.Text = state
+					vals.Got.Text = tostring(session and session.got or 0)
+					vals.Rounds.Text = tostring(stats.rounds)
+					vals.Total.Text = tostring(stats.total + (session and session.got or 0))
+					vals.Last.Text = stats.last
+					vals.Map.Text = (container and container.Parent) and "Yes" or "No"
 				end
 			end
 		end)
 
-		-- 10) DESCARREGAR
 		ctx.OnUnload(function()
 			running = false
-			cfg.Coins, cfg.Event, cfg.Gun, cfg.ESP = false, false, false, false
-			ESP.SetEnabled("MM2Roles", false)
-			coinTarget = nil
-			gun.origin = nil
+			cfg.Farm = false
+			session = nil
+			releaseHold()
 		end)
 	end,
 })
